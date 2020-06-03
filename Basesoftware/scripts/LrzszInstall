@@ -1,0 +1,31 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-10 by yangyuntian 
+#===============================================================================
+
+#===============================================================================
+###安装rz、sz###
+#===============================================================================
+function LrzszInstall
+{
+    cd ${installPath}/lrzsz
+    tar -xvf ${Lrzsz_package}  >> ${installlogsPath}/LrzszRunning-${Date}.log 2>&1
+    ProgressBar10
+    cd ./${lrzsz_version}/
+    ./configure  &>> ${installlogsPath}/LrzszRunning-${Date}.log 2>&1
+    ProgressBar30
+    make &>> ${installlogsPath}/LrzszRunning-${Date}.log 2>&1
+    ProgressBar50
+    make install &>> ${installlogsPath}/LrzszRunning-${Date}.log 2>&1
+    ProgressBar80
+    
+    ln -s /usr/local/bin/lrz /usr/bin/rz  >> ${installlogsPath}/LrzszRunning-${Date}.log 2>&1
+    ln -s /usr/local/bin/lsz /usr/bin/sz  >> ${installlogsPath}/LrzszRunning-${Date}.log 2>&1
+
+    echo  "#------lrzsz安装情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+    rz --version >> ${installlogsPath}/VerificationResult-${Date}.log
+    echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log
+    ProgressBar100
+    sleep 2
+    Msgbox "lrzsz安装完成"
+}

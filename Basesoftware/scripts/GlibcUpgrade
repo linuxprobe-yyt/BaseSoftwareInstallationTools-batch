@@ -1,0 +1,57 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-25 by yangyuntian 
+#===============================================================================
+
+#===============================================================================
+#### glibc 升级####
+#===============================================================================
+
+function CheckGlibcVersion
+{
+	strings /lib64/libc.so.6 |grep GLIBC_2.14 &>> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	if [ $? -eq "0" ];then
+		Msgbox "Glibc 版本符合采集系统要求"
+	else
+		Msgbox "开始升级 Glibc 到 GLIBC_2.14 版本"
+		GlibcUpgrade
+	fi
+}
+
+function GlibcUpgrade
+{
+	cd ${installPath}/glibc >> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	tar -xvf glibc_update.tar.gz >> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	cd ./glibc_update >> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	tar -zxvf ${glibc_package} >> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	ProgressBar10
+	cd ./${glibc_version} >> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	mkdir build >> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	cd ./build >> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	../configure --prefix=/usr/local/${glibc_version} &>> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	ProgressBar30
+	make &>> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	ProgressBar50
+	make localedata/install-locales &>> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	yes|cp ./libc.so /lib64/libc-2.14.so >> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	/sbin/ldconfig >> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	ProgressBar80
+
+	#安装 libstdc__-4.8.5-11.el7.x86_64.rpm   
+	cd ${installPath}/glibc/glibc_update  >> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	yes|rpm -Uvh libstdc__-4.8.5-11.el7.x86_64.rpm --nodeps --force >> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+
+	#升级完glibc后时区会变成utc，修改时区
+	mkdir -p /usr/local/${glibc_version}/etc/ >> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	cd /usr/local/${glibc_version}/etc/ >> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	ln -s /usr/share/zoneinfo/Asia/Shanghai ./localtime >> ${installlogsPath}/GlibcRunning-${Date}.log 2>&1
+	
+	echo  "#------glibc 升级情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+	strings /lib64/libc.so.6 |grep GLIBC_2.14 &>> ${installlogsPath}/VerificationResult-${Date}.log
+	echo "服务器时区显示：$(date +%Z)" >> ${installlogsPath}/VerificationResult-${Date}.log
+	echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log
+    ProgressBar100
+    sleep 2
+    Msgbox "glibc 升级完成"
+	CheckGlibcVersion
+}

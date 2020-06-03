@@ -1,0 +1,54 @@
+#!/bin/bash
+#===============================================================================
+#2020-05-08 by yangyuntian
+#===============================================================================
+function PingHosts
+{ 
+	grep -e "\[all\:vars\]" ${ansible_dir}/hosts >> /dev/null 2>&1
+	if [ $? -ne 0 ];then
+	  echo -e "\n[all:vars]" >> ${ansible_dir}/hosts
+	  echo "ansible_ssh_port=${ansible_ssh_port}" >> ${ansible_dir}/hosts
+	  echo "ansible_ssh_user=${ansible_ssh_user}" >> ${ansible_dir}/hosts
+	  echo "ansible_ssh_pass=${ansible_ssh_pass}" >> ${ansible_dir}/hosts
+	  if [ ${sys_ver} == "6" ];then
+	    echo "ansible_python_interpreter=/usr/bin/python2.6" >> ${ansible_dir}/hosts
+	  fi
+	fi
+	
+	whiptail --title "消息" --yes-button "确定" --no-button "取消"  --yesno "开始核查主机连接情况" 10 60 --fb --backtitle  "${back_title}"
+	if [ $? -eq 0 ];then
+		ProgressBar "开始核查主机连接情况..." &
+		ProgressBar_pid=$!
+		source /etc/profile
+		WHICHANSIBLE=$(which ansible) >> /dev/null 2>&1
+		echo -e "注意：点击<确认>会将异常主机剔除，存入hosts_error中；点击<取消>将退出程序\n" >> ${installlogsPath}/ping/PingHosts-${Date}.log 2>&1
+		echo "######异常主机######" >> ${installlogsPath}/ping/PingHosts-${Date}.log 2>&1
+		RES=$(${WHICHANSIBLE} all -m ping |grep -E "\|.*\="|awk -F '|' '{t=$0;gsub(/.*\||\=.*/,"",t);print $1"|"t}'|awk '/UNREACHABLE\!/')
+		if [ -n "${RES}" ];then
+		  ${WHICHANSIBLE} all -m ping |grep -E "\|.*\="|awk -F '|' '{t=$0;gsub(/.*\||\=.*/,"",t);print $1"|"t}'|awk '/UNREACHABLE\!/' >> ${installlogsPath}/ping/PingHosts-${Date}.log 2>&1
+		else
+		  echo "<空>" >> ${installlogsPath}/ping/PingHosts-${Date}.log 2>&1
+    fi
+		echo "######正常主机######" >> ${installlogsPath}/ping/PingHosts-${Date}.log 2>&1
+		${WHICHANSIBLE} all -m ping |grep -E "\|.*\="|awk -F '|' '{t=$0;gsub(/.*\||\=.*/,"",t);print $1"|"t}'|awk '/SUCCESS/' >> ${installlogsPath}/ping/PingHosts-${Date}.log 2>&1
+		kill -9 ${ProgressBar_pid} &>> /dev/null 2>&1
+	else
+		exit
+	fi
+	sed -e "s#UNREACHABLE\!#主机无法连接\，请处理\| error#g" -e "s#SUCCESS#主机连接正常\| ok#g" -i ${installlogsPath}/ping/PingHosts-${Date}.log
+	awk -F '|' '{if($3 ~ "error"){print $1}}' ${installlogsPath}/ping/PingHosts-${Date}.log >> ${ansible_dir}/hosts_error-${Date}
+	CHECK=$(cat ${installlogsPath}/ping/PingHosts-${Date}.log)
+	whiptail --title "核查主机连接情况" --yes-button "确定" --no-button "取消"  --yesno "${CHECK}" 30 80 --scrolltext --fb --backtitle  "${back_title}"
+	if [ $? -eq 0 ];then
+#		awk -F '|' '{if($3 ~ "error"){print $1}}' ${installlogsPath}/ping/PingHosts-${Date}.log >> ${ansible_dir}/hosts_error-${Date}
+		if [ ! -s ${ansible_dir}/hosts_error-${Date} ];then
+		  rm -rf ${ansible_dir}/hosts_error-${Date}
+		fi
+		for i in `cat ${ansible_dir}/hosts_error-${Date} 2> /dev/null`
+		do
+			sed -i "/$i/d" ${ansible_dir}/hosts &> /dev/null
+		done
+	else
+		exit
+	fi
+}

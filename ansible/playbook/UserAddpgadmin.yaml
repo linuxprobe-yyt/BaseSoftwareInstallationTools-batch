@@ -1,0 +1,27 @@
+---
+- hosts: "{{ host }}"
+  gather_facts: true
+  vars_files:
+    - playbook.conf
+
+  tasks:
+    - name: "添加用户组pgadmin"
+      group:
+        name: pgadmin
+        state: present
+        system: no
+      ignore_errors: true
+
+    - name: "添加用户pgadmin"
+      user:
+        name: pgadmin
+        group: pgadmin
+        shell: /bin/bash
+        createhome: yes
+        home: /home/pgadmin
+        state: present
+      ignore_errors: true
+
+    - name: "检查添加用户pgadmin情况"
+      shell: echo  "#------用户添加情况------#" >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log" &&
+             cat /etc/passwd |grep -w pgadmin >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"

@@ -1,0 +1,20 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-02 by yangyuntian 
+#===============================================================================
+
+#===============================================================================
+#检查系统是否安装gcc
+function CheckGccInstalled
+{
+	LOADING "检测操作系统是否安装gcc" 0.01
+	GCC=`whereis gcc|awk -F ':' '{print $2}'`
+		if [ -z "${GCC}" ];then
+			Msgbox "系统未安装gcc，将首先安装gcc"
+			GCCInstall_centos${sys_ver}
+			CheckGccInstalled
+		else
+			GCC_VER=`gcc -dumpversion`
+			Msgbox "系统已安装gcc，版本为： ${GCC_VER}"
+		fi
+}

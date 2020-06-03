@@ -1,0 +1,265 @@
+#! /bin/bash
+#===============================================================================
+#2020-03-02 by yangyuntian 
+#===============================================================================
+
+export LANG="zh_CN.UTF-8"
+
+# Source function library.
+source /etc/init.d/functions
+
+#### 基础软件安装 ######
+
+function SelectBasicSoftware
+{
+for softlist in $1
+do 
+	if [ "${softlist}" == "AllUserAdd" ];then
+		AllUserAdd
+	elif [ "${softlist}" == "UserAddpgadmin" ];then
+		UserAddpgadmin	
+	elif [ "${softlist}" == "UserAddtomcat" ];then
+		UserAddtomcat	
+	elif [ "${softlist}" == "JDK" ];then
+		Msgbox "开始安装JDK"
+		JDKInstall 
+	elif [ "${softlist}" == "Tomcat" ];then
+		Msgbox "开始安装Tomcat"
+		TomcatInstall_centos${sys_ver} 
+	elif [ "${softlist}" == "Postgresql" ];then
+		Msgbox "开始安装Postgresql"
+		PostgresqlInstall_centos${sys_ver}
+	elif [ "${softlist}" == "Iftop" ];then
+		Msgbox "开始安装Iftop"
+		IftopInstall_centos${sys_ver}
+	elif [ "${softlist}" == "Iotop" ];then
+		Msgbox "开始安装Iotop"
+		IotopInstall_centos${sys_ver}
+	elif [ "${softlist}" == "Sysstat" ];then
+		Msgbox "开始安装Sysstat"
+		SysstatInstall
+	elif [ "${softlist}" == "Lrzsz" ];then
+		Msgbox "开始安装Lrzsz"
+		LrzszInstall 
+	elif [ "${softlist}" == "gcc" ];then
+		Msgbox "开始安装gcc"
+		GCCInstall_centos${sys_ver}
+	elif [ "${softlist}" == "snmp" ];then
+		Msgbox "开始安装snmp"
+		SnmpInstall
+	elif [ "${softlist}" == "JDK_Upgrade" ];then
+		Msgbox "开始升级JDK"
+		JDKUpgrade
+	elif [ "${softlist}" == "Tomcat_Upgrade" ];then
+		Msgbox "开始升级Tomcat"
+		TomcatUpdate_centos${sys_ver}
+	elif [ "${softlist}" == "Glibc" ];then
+		Msgbox "检测glibc版本"
+		CheckGlibcVersion
+	elif [ "${softlist}" == "Dpdk" ];then
+		if [ -f ${installlogsPath}/VerificationResult-${Date}.log ];then
+			CheckRunningResults "核查软件安装情况"
+			Msgbox "开始安装 Dpdk"
+			CheckNetworkcardModel
+		else
+			Msgbox "开始安装 Dpdk"
+			CheckNetworkcardModel
+		fi
+	elif [ "${softlist}" == "Pf_ring" ];then
+		Msgbox "开始安装 Pf_ring"
+		PfringInstall
+	fi
+done
+}
+
+###DVNWeb服务器###
+
+function InstallBasicSoftware_DNVWeb
+{
+    soft_list=$(whiptail --title "DNVWeb基础软件" --checklist \
+    "请选择要安装的软件" 30 70 16 \
+    "AllUserAdd" "tomcat和pgadmin" ON \
+    "JDK" "${JDK_package}" ON \
+    "Tomcat" "${Tomcat_package}" ON \
+    "Postgresql" "${Postgresql_package}" ON \
+    "snmp" "${snmp_package}" ON \
+    "Iftop" "`eval echo '$'{Iftop_package_${sys_ver}}`" ON \
+    "Iotop" "`eval echo '$'{Iotop_package_${sys_ver}}`" ON \
+    "Sysstat" "${Sysstat_package}" ON \
+    "Lrzsz" "${Lrzsz_package}" ON --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+
+    if [ $? = 0 ]; then
+        if [ ! -n "${soft_list}" ]; then
+            Msgbox "至少选择一个软件"
+            InstallBasicSoftware_DNVWeb   
+        else
+            list_soft=$(echo  ${soft_list} |sed  's/"//g' )
+            Msgbox "默认全部选择安装"
+            SelectBasicSoftware "${list_soft}"
+            CheckRunningResults "核查软件安装情况"
+        fi
+    fi
+}
+
+###数据库服务器###
+
+function InstallBasicSoftware_DataBase
+{
+    soft_list=$(whiptail --title "数据库服务器基础软件" --checklist \
+    "请选择要安装的软件" 30 70 16 \
+    "UserAddpgadmin" "pgadmin" ON \
+    "JDK" "${JDK_package}" ON \
+    "Tomcat" "${Tomcat_package}" OFF \
+    "Postgresql" "${Postgresql_package}" ON \
+    "Iftop" "`eval echo '$'{Iftop_package_${sys_ver}}`" ON \
+    "Iotop" "`eval echo '$'{Iotop_package_${sys_ver}}`" ON \
+    "Sysstat" "${Sysstat_package}" ON \
+    "Lrzsz" "${Lrzsz_package}" ON --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+
+    if [ $? = 0 ]; then
+	    if [ ! -n "${soft_list}" ]; then
+		    Msgbox "至少选择一个软件"
+		    InstallBasicSoftware_DataBase   
+	    else
+		    list_soft=$(echo  ${soft_list} |sed  's/"//g' )
+		    Msgbox "默认选择项全部安装"
+		    SelectBasicSoftware "${list_soft}"
+		    CheckRunningResults "核查软件安装情况"
+	    fi
+    fi
+}
+
+###采集服务器####
+
+function InstallBasicSoftware_Collector
+{
+    soft_list=$(whiptail --title "采集服务器基础软件" --checklist \
+    "请选择要安装的软件" 30 70 16 \
+    "UserAddpgadmin" "pgadmin" OFF \
+    "JDK" "${JDK_package}" ON \
+    "Tomcat" "${Tomcat_package}" OFF \
+    "Postgresql" "${Postgresql_package}" OFF \
+    "Iftop" "`eval echo '$'{Iftop_package_${sys_ver}}`" ON \
+    "Iotop" "`eval echo '$'{Iotop_package_${sys_ver}}`" ON \
+    "Sysstat" "${Sysstat_package}" ON \
+    "Lrzsz" "${Lrzsz_package}" ON \
+	"Glibc" "${glibc_package}" ON \
+	"Dpdk" "${dpdk_package}" ON \
+    "Pf_ring" "${Pf_ring_package}" OFF --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+
+    if [ $? = 0 ]; then
+	    if [ ! -n "${soft_list}" ]; then
+		    Msgbox "至少选择一个软件"
+		    InstallBasicSoftware_Collector   
+	    else
+		    list_soft=$(echo  ${soft_list} |sed  's/"//g' )
+		    Msgbox "默认选择项全部安装"
+		    SelectBasicSoftware "${list_soft}"
+			CheckRunningResults "核查软件安装情况"
+	    fi
+    fi
+}
+function InstallBasicSoftware_Collector_Pfring
+{
+    soft_list=$(whiptail --title "采集服务器基础软件" --checklist \
+    "请选择要安装的软件" 30 70 16 \
+    "UserAddpgadmin" "pgadmin" OFF \
+    "JDK" "${JDK_package}" OFF \
+    "Dpdk" "${dpdk_package}" OFF \
+	"Glibc" "${glibc_package}" ON \
+    "Pf_ring" "${Pf_ring_package}" ON \
+    "Tomcat" "${Tomcat_package}" OFF \
+    "Postgresql" "${Postgresql_package}" OFF \
+    "Iftop" "`eval echo '$'{Iftop_package_${sys_ver}}`" OFF \
+    "Iotop" "`eval echo '$'{Iotop_package_${sys_ver}}`" OFF \
+    "Sysstat" "${Sysstat_package}" OFF \
+    "Lrzsz" "${Lrzsz_package}" OFF --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+
+    if [ $? = 0 ]; then
+	    if [ ! -n "${soft_list}" ]; then
+		    Msgbox "至少选择一个软件"
+		    InstallBasicSoftware_Collector   
+	    else
+		    list_soft=$(echo  ${soft_list} |sed  's/"//g' )
+		    Msgbox "默认选择项全部安装"
+		    SelectBasicSoftware "${list_soft}"
+		    CheckRunningResults "核查软件安装情况"
+	    fi
+    fi
+}
+
+###汇聚服务器###
+
+function InstallBasicSoftware_Trans
+{
+    soft_list=$(whiptail --title "汇聚服务器基础软件" --checklist \
+    "请选择要安装的软件" 30 70 16 \
+    "UserAddpgadmin" "pgadmin" OFF \
+    "JDK" "${JDK_package}" ON \
+    "Tomcat" "${Tomcat_package}" OFF \
+    "Postgresql" "${Postgresql_package}" OFF \
+    "Iftop" "`eval echo '$'{Iftop_package_${sys_ver}}`" ON \
+    "Iotop" "`eval echo '$'{Iotop_package_${sys_ver}}`" ON \
+    "Sysstat" "${Sysstat_package}" ON \
+    "Lrzsz" "${Lrzsz_package}" ON --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+
+    if [ $? = 0 ]; then
+	    if [ ! -n "${soft_list}" ]; then
+		    Msgbox "至少选择一个软件"
+		    InstallBasicSoftware_Trans   
+	    else
+		    list_soft=$(echo  ${soft_list} |sed  's/"//g' )
+		    Msgbox "默认选择项全部安装"
+		    SelectBasicSoftware "${list_soft}"
+		    CheckRunningResults "核查软件安装情况"
+	    fi
+    fi
+}
+
+###自主选择基础软件###
+
+function InstallBasicSoftware_FreeChoice
+{
+    soft_list=$(whiptail --title "自主选择基础软件" --checklist \
+    "请选择要安装的软件" 30 70 16 \
+    "UserAddpgadmin" "pgadmin" OFF \
+    "UserAddtomcat" "tomcat" OFF \
+    "JDK" "${JDK_package}" OFF \
+    "Tomcat" "${Tomcat_package}" OFF \
+    "Postgresql" "${Postgresql_package}" OFF \
+    "Iftop" "`eval echo '$'{Iftop_package_${sys_ver}}`" OFF \
+    "Iotop" "`eval echo '$'{Iotop_package_${sys_ver}}`" OFF \
+    "Sysstat" "${Sysstat_package}" OFF \
+    "Lrzsz" "${Lrzsz_package}" OFF \
+    "snmp" "${snmp_package}" OFF --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+
+    if [ $? = 0 ]; then
+	    if [ ! -n "${soft_list}" ]; then
+		    Msgbox "至少选择一个软件"
+		    InstallBasicSoftware_FreeChoice   
+	    else
+		    list_soft=$(echo  ${soft_list} |sed  's/"//g' )
+		    Msgbox "自主选择项安装"
+		    SelectBasicSoftware "${list_soft}"
+		    CheckRunningResults "核查软件安装情况"
+	    fi
+    fi
+}
+###升级###
+
+function InstallBasicSoftware_Upgrade
+{
+    soft_list=$(whiptail --title "软件升级" --checklist \
+    "请选择要升级的软件" 30 70 16 \
+    "JDK_Upgrade" "${JDK_update_package}" OFF \
+    "Tomcat_Upgrade" "${Tomcat_package}" OFF --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+
+    if [ $? = 0 ]; then
+		list_soft=$(echo  ${soft_list} |sed  's/"//g' )
+		Msgbox "升级选中软件"
+		SelectBasicSoftware "${list_soft}"
+		CheckUpgradeResults
+    fi
+}
+
+

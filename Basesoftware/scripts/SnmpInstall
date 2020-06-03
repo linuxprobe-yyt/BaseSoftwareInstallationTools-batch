@@ -1,0 +1,29 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-02 by yangyuntian 
+#===============================================================================
+
+#===============================================================================
+#### net-snmp安装 ####
+#===============================================================================
+function SnmpInstall
+{
+	cd ${installPath}/snmp
+	tar -zxvf ${snmp_package} >> ${installlogsPath}/SnmpRunning-${Date}.log 2>&1
+	ProgressBar10
+	cd ${snmp_version}
+	echo -e "\n" | ./configure &>> ${installlogsPath}/SnmpRunning-${Date}.log 2>&1
+	ProgressBar30
+	make &>> ${installlogsPath}/SnmpRunning-${Date}.log 2>&1
+	ProgressBar50
+	make install &>> ${installlogsPath}/SnmpRunning-${Date}.log 2>&1
+	ProgressBar80
+	yes | ln -s /usr/local/bin/snmpwalk /usr/bin/snmpwalk >> ${installlogsPath}/SnmpRunning-${Date}.log 2>&1
+	
+	echo  "#------snmp安装情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+	snmpwalk --version &>> ${installlogsPath}/VerificationResult-${Date}.log
+	echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log
+	ProgressBar100
+	sleep 2
+	Msgbox "snmp安装完成"
+}

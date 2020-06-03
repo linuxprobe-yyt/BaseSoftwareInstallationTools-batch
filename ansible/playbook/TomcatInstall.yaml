@@ -1,0 +1,119 @@
+#===============================================================================
+#2020-05-08 by yangyuntian
+#===============================================================================
+---
+- hosts: "{{ host }}"
+  gather_facts: true
+  vars_files:
+    - playbook.conf
+
+  tasks:
+    - name: "stat /home/tomcat 目录是否存在"
+      stat:
+        path: /home/tomcat
+      register: path
+      ignore_errors: false
+
+    - name: "解压 tomcat"
+      unarchive:
+        src: "{{dest_packages_path}}/tomcat/{{tomcat_packages}}"
+        dest: /home/tomcat
+        copy: no
+        mode: '0755'
+      register: tar_tomcat_result
+      ignore_errors: false
+      when: path.stat.isdir is defined and path.stat.isdir
+
+    - name: "解压 commons-daemon-native.tar.gz"
+      unarchive:
+        src: "/home/tomcat/apache-tomcat-{{tomcat_version}}/bin/commons-daemon-native.tar.gz"
+        dest: "/home/tomcat/apache-tomcat-{{tomcat_version}}/bin"
+        copy: no
+        mode: '0755'
+      register: tar_native_result
+      ignore_errors: false
+      when: tar_tomcat_result is changed
+
+    - name: "configure 0755"
+      file:
+         path: "/home/tomcat/apache-tomcat-{{tomcat_version}}/bin/commons-daemon-1.0.15-native-src/unix/configure"
+         mode: '0755'
+
+    - name: "configure jsvc"
+      shell: "./configure --with-java=/usr/java/jdk{{JDK_version}}"
+      args:
+        chdir: "/home/tomcat/apache-tomcat-{{tomcat_version}}/bin/commons-daemon-1.0.15-native-src/unix/"
+
+    - name: "编译 jsvc"
+      make:
+        chdir: "/home/tomcat/apache-tomcat-{{tomcat_version}}/bin/commons-daemon-1.0.15-native-src/unix/"
+        params:
+          NUM_THREADS: "{{ansible_processor_vcpus}}"
+
+    - name: "cp jsvc"
+      file:
+        src: "/home/tomcat/apache-tomcat-{{tomcat_version}}/bin/commons-daemon-1.0.15-native-src/unix/jsvc"
+        dest: "/home/tomcat/apache-tomcat-{{tomcat_version}}/bin/jsvc"
+        state: link
+
+    - name: "修改 /home/tomcat 权限"
+      file:
+        path: /home/tomcat
+        state: directory
+        recurse: yes
+        owner: tomcat
+        group: tomcat
+        mode: '0777'
+
+    - name: "判断系统类型为centos 7，创建启动方式"
+      copy:
+        src: "/home/tomcat/apache-tomcat-{{tomcat_version}}/bin/tomcat.service"
+        dest: "/etc/systemd/system/tomcat.service"
+        owner: root
+        group: root
+        mode: '0755'
+      register: cp_result_7
+      ignore_errors: false
+      when: tar_tomcat_result is changed and ansible_distribution_major_version == "7"
+
+    - name: "判断系统类型为centos 6，创建启动方式"
+      copy:
+        src: "{{dest_packages_path}}/tomcat/tomcat"
+        dest: "/etc/rc.d/init.d/tomcat"
+        owner: root
+        group: root
+        mode: '0755'
+      register: cp_result_6
+      ignore_errors: false
+      when: tar_tomcat_result is changed and ansible_distribution_major_version == "6"
+
+    - name: "判断系统类型为centos 7，启动tomcat服务"
+      systemd:
+        name: tomcat
+        daemon_reload: yes
+        state: restarted
+        enabled: yes
+      ignore_errors: true
+      when: cp_result_7 is changed and ansible_distribution_major_version == "7"
+
+    - name: "判断系统类型为centos 6，启动tomcat服务"
+      service:
+        name: tomcat
+        state: restarted
+        enabled: yes
+      ignore_errors: true
+      when: cp_result_6 is changed and ansible_distribution_major_version == "6"
+
+    - name: "判断系统类型为centos 7,检查 tomcat 运行状态"
+      shell: echo  "#------Tomcat安装情况------#" >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log" &&
+             systemctl status tomcat |grep -w Active |awk '{sub(/^[ \t]+/,"");print $0}' &>> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"
+      when: ansible_distribution_major_version == "7"
+
+    - name: "判断系统类型为centos 6,检查 tomcat 运行状态"
+      shell: echo  "#------Tomcat安装情况------#" >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log" &&
+             service tomcat status >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"
+      when: ansible_distribution_major_version == "6"
+
+
+
+

@@ -1,0 +1,44 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-02 by yangyuntian 
+#===============================================================================
+
+#######安装Pf_ring#######
+
+function PfringInstall
+{
+	mkdir -p /usr/local/src >> ${installlogsPath}/PfringRunning-${Date}.log 2>&1
+	tar -Jxvf  ${installPath}/Pf_ring/${Pf_ring_package} -C /usr/local/src/ >> ${installlogsPath}/PfringRunning-${Date}.log 2>&1
+	ProgressBar10
+	cd /usr/local/src/${Pf_ring_version} >> ${installlogsPath}/PfringRunning-${Date}.log 2>&1
+	cd ./kernel && make &>> ${installlogsPath}/PfringRunning-${Date}.log 2>&1
+	ProgressBar30
+	cd ../userland && make &>> ${installlogsPath}/PfringRunning-${Date}.log 2>&1
+	ProgressBar50
+	yes|cp ./lib/libpfring.so /usr/lib64/ >> ${installlogsPath}/PfringRunning-${Date}.log 2>&1
+	yes|cp ./lib/libpfring.so /usr/local/lib >> ${installlogsPath}/PfringRunning-${Date}.log 2>&1
+	yes|cp ./lib/libpfring.so /usr/lib >> ${installlogsPath}/PfringRunning-${Date}.log 2>&1
+
+	kill -9 `ps -ef|grep -v grep|grep p_nurse.py|awk '{print $2}'` >> ${installlogsPath}/PfringRunning-${Date}.log 2>&1
+	killall -9 uasg >> ${installlogsPath}/PfringRunning-${Date}.log 2>&1
+	sleep 2
+	ProgressBar80
+	rmmod pf_ring >> ${installlogsPath}/PfringRunning-${Date}.log 2>&1
+	insmod /usr/local/src/${Pf_ring_version}/kernel/pf_ring.ko transparent_mode=0 min_num_slots=409600 enable_tx_capture=1 enable_ip_defrag=1 quick_mode=1 >> ${installlogsPath}/PfringRunning-${Date}.log 2>&1
+	sed -i "/^insmod/d" /etc/rc.d/rc.local >> ${installlogsPath}/PfringRunning-${Date}.log 2>&1
+	echo "insmod /usr/local/src/${Pf_ring_version}/kernel/pf_ring.ko transparent_mode=0 min_num_slots=409600 enable_tx_capture=1 enable_ip_defrag=1 quick_mode=1" >> /etc/rc.d/rc.local
+
+	if [ -f /proc/net/pf_ring/info ]; then
+		CHK_INFO=`cat /proc/net/pf_ring/info |grep 'PF_RING Version          : 6.6.0' | wc -l`
+		if [ ${CHK_INFO} -eq 1 ]; then
+			ProgressBar100
+			echo  "#------Pf_ring安装情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+			cat /proc/net/pf_ring/info |grep 'PF_RING Version          : 6.6.0' >> ${installlogsPath}/VerificationResult-${Date}.log 2>&1
+			echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log			
+		else
+			Msgbox "Pf_ring 安装失败"
+		fi
+	else
+		Msgbox "Pf_ring 安装失败"
+	fi		
+}

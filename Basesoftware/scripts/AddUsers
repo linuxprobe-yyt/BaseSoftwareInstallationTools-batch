@@ -1,0 +1,57 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-02 by yangyuntian 
+#===============================================================================
+
+#===============================================================================
+# 增加用户和组
+# 增加两个用户：pgadmin tomcat
+AllUserAdd(){
+
+    Msgbox "开始添加用户pgadmin和tomcat"
+
+    groupadd pgadmin >> ${installlogsPath}/WebUserAddRunning-${Date}.log 2>&1
+    groupadd tomcat >> ${installlogsPath}/WebUserAddRunning-${Date}.log 2>&1
+    useradd -g pgadmin pgadmin >> ${installlogsPath}/WebUserAddRunning-${Date}.log 2>&1
+    useradd -g tomcat -s /sbin/nologin tomcat >> ${installlogsPath}/WebUserAddRunning-${Date}.log 2>&1
+
+    #echo '${PgadminPasswd}' | passwd --stdin pgadmin >> ${installlogsPath}/WebUserAddRunning-${Date}.log 2>&1
+    #echo '${TomcatPasswd}' | passwd --stdin tomcat >> ${installlogsPath}/WebUserAddRunning-${Date}.log 2>&1
+
+    echo  "#------用户添加情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+    cat /etc/passwd |grep -w pgadmin >> ${installlogsPath}/VerificationResult-${Date}.log
+    cat /etc/passwd |grep -w tomcat >> ${installlogsPath}/VerificationResult-${Date}.log
+    echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log
+    
+    LOADING "添加中........" 0.001
+    Msgbox "pgadmin和tomcat添加完成"
+}
+
+UserAddpgadmin(){
+
+    Msgbox "开始添加用户pgadmin"
+
+    groupadd pgadmin >> ${installlogsPath}/UserAddpgadminRunning-${Date}.log 2>&1
+    useradd -g pgadmin pgadmin >> ${installlogsPath}/UserAddpgadminAddRunning-${Date}.log 2>&1
+
+    echo  "#------用户添加情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+    cat /etc/passwd |grep -w pgadmin >> ${installlogsPath}/VerificationResult-${Date}.log
+    echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log
+    
+    LOADING "添加中........" 0.001
+    Msgbox "pgadmin添加完成"
+}
+
+UserAddtomcat(){
+
+    Msgbox "开始添加用户tomcat"
+    groupadd tomcat >> ${installlogsPath}/UserAddtomcatRunning-${Date}.log 2>&1
+    useradd -g tomcat -s /sbin/nologin tomcat >> ${installlogsPath}/UserAddtomcatAddRunning-${Date}.log 2>&1
+
+    echo  "#------用户添加情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+    cat /etc/passwd |grep -w tomcat >> ${installlogsPath}/VerificationResult-${Date}.log
+    echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log
+    
+    LOADING "添加中........" 0.001
+    Msgbox "tomcat添加完成"
+}

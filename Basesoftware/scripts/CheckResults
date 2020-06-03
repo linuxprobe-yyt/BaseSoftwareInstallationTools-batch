@@ -1,0 +1,22 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-02 by yangyuntian 
+#===============================================================================
+#核查安装情况
+function CheckRunningResults
+{
+	INSTALL=`cat ${installlogsPath}/VerificationResult-${Date}.log 2>/dev/null`
+	whiptail --title "${1}" --yes-button "确定" --no-button "取消"  --yesno "${INSTALL}" 30 80 --scrolltext --fb --backtitle  "${back_title}"
+	if [ $? -ne 0 ];then
+		exit
+	fi
+}
+#核查升级情况
+function CheckUpgradeResults
+{
+	INSTALL=`cat ${installlogsPath}/UpgradeVerificationResult-${Date}.log 2>/dev/null`
+	whiptail --title "核查升级情况" --yes-button "确定" --no-button "取消"  --yesno "${INSTALL}" 30 80 --scrolltext --fb --backtitle  "${back_title}"
+	if [ $? -ne 0 ];then
+		exit
+	fi
+}

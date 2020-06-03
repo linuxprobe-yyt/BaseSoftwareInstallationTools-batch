@@ -1,0 +1,28 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-02 by yangyuntian 
+#===============================================================================
+
+####进度条####
+
+function LOADING
+{
+	{ for ((p = 0 ; p <= 100 ; p+=1))
+		do
+			sleep $2
+			echo $p
+		done
+	} | whiptail --gauge "$1" 6 60 0
+
+}
+
+function ProgressBar()
+{
+	sl='sleep 0.2'
+    echo  "开始$1,请稍候..."
+    while true
+    do
+        echo -e '*'"\b\c";$sl
+        echo -e "*\c";$sl
+    done
+}

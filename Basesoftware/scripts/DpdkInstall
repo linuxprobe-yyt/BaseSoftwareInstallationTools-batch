@@ -1,0 +1,123 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-10 by yangyuntian 
+#===============================================================================
+
+#######安装dpdk#######
+###检查网卡型号，是否为Intel###
+
+function CheckNetworkcardModel
+{
+	model_details=`lspci | grep Ethernet`
+	networkcard_model=`lspci | grep Ethernet |awk '{print $4}'|uniq`
+	if [ "${networkcard_model}" == "Intel" ];then
+		whiptail --title "核查网卡型号" --yes-button "确定" --no-button "取消"  --yesno "服务器网卡为 Intel,可以安装dpdk,详情如下: \n\n${model_details}" 30 100 --scrolltext --fb --backtitle  "${back_title}"
+		if [ $? -eq 0 ];then
+			CheckNetworkcardStartupStatus
+		else
+			exit
+		fi	
+	else
+		Msgbox "服务器网卡非 Intel ，安装Pf_ring"
+		InstallBasicSoftware_Collector_Pfring
+	fi
+}
+
+###判断与修改内核启动参数###
+
+function ModifyKernelParameters
+{
+	Msgbox "开始修改内核的启动参数intel_iommu=on为off"
+	if [ "${sys_ver}" -eq "6" ];then
+		grep -w 'intel\_iommu\=on' /etc/grub.conf >> ${installlogsPath}/dpdk/DpdkRunning-${Date}.log 2>&1
+		if [ $? -eq "0" ];then
+			sed -i s/intel\_iommu\=on/intel\_iommu\=off/g /etc/grub.conf >> ${installlogsPath}/dpdk/DpdkRunning-${Date}.log 2>&1
+			Msgbox "修改内核的启动参数完成，请手动重启服务器。\n重启后，请在采集页面调节选项，只选dpdk进行安装。"
+			exit
+		else
+			Msgbox "内核启动参数符合要求，无需修改，请继续安装 dpdk"
+		fi
+	else
+		grep -w 'intel\_iommu\=on' /etc/grub2.cfg >> ${installlogsPath}/dpdk/DpdkRunning-${Date}.log 2>&1
+		if [ $? -eq "0" ];then
+			sed -i s/intel\_iommu\=on/intel\_iommu\=off/g /etc/grub2.cfg >> ${installlogsPath}/dpdk/DpdkRunning-${Date}.log 2>&1
+			Msgbox "修改内核的启动参数完成，请手动重启服务器。\n重启后，请在采集页面调节选项，只选dpdk进行安装。"
+			exit
+		else
+			Msgbox "内核启动参数符合要求，无需修改，请继续安装 dpdk"
+		fi		
+	fi
+}
+
+###检查网卡启动状态###
+
+function CheckNetworkcardStartupStatus
+{
+	startup_status_up=`ip link | grep "state UP" | awk '{ print " state UP : " $2  }'|sed 's/\(.*\):\(.*\)/\1 \2/'`
+	startup_status_down=`ip link | grep "state DOWN" | awk '{ print " state DOWN : " $2  }'|sed 's/\(.*\):\(.*\)/\1 \2/'`
+	startup_status_unknown=`ip link | grep "state UNKNOWN" | awk '{ print " state UNKNOWN : " $2  }'|sed 's/\(.*\):\(.*\)/\1 \2/'`
+	whiptail --title "核查网卡启动" --yes-button "确定" --no-button "取消"  --yesno "网卡的启动情况如下,详情如下: \n\n${startup_status_up}\n\n${startup_status_down}\n\n${startup_status_unknown}" 30 100 --scrolltext --fb --backtitle  "${back_title}"
+	if [ $? -eq 0 ];then
+		ModifyKernelParameters
+		DpdkInstall
+	else
+		exit
+	fi	
+}
+
+###dpdk安装部署###
+function SetMemory
+{
+	MEMORY=$(whiptail --title "配置内存大小" --inputbox "默认为4096,如果不够可以修改成 8192" 20 80 --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+	exitstatus=$?
+	Array_Memory=(${MEMORY})
+	if [ ${exitstatus} -eq 0 ];then
+		if [ ${#Array_Memory[@]} -eq 0 ];then
+			Msgbox "使用默认值4096"
+		elif [ ${#Array_Memory[@]} -eq 1 ];then
+			sed -i s/PAGES\=4096/PAGES\=${Array_Memory[@]}/g ${dpdk_installpath}/dpdk-*/DPDKSetup.sh >> ${installlogsPath}/dpdk/DpdkRunning-${Date}.log 2>&1
+			Msgbox "内存修改为 ${Array_Memory[@]} 完成"
+		else
+			Msgbox "只能填一个数值"
+			SetMemory
+		fi
+	fi
+}
+
+function SetNetworkCard
+{
+	NetworkCode=$(whiptail --title "配置网卡" --inputbox "\n注意：填写网卡的名称，不要写管理口，多个网卡空格分隔：'eth3 eth4 eth5'" 30 80 --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+	exitstatus=$?
+	Array_NetworkCode=(${NetworkCode})
+	if [ ${exitstatus} -eq 0 ];then
+		if [ ${#Array_NetworkCode[@]} -eq 0 ];then
+			Msgbox "未填写网卡名称，请重新确认配置"
+			SetNetworkCard
+		else
+			sed -i s/PCI_PATH\=".*"/PCI_PATH\="${Array_NetworkCode[@]}"/g ${dpdk_installpath}/dpdk-*/DPDKSetup.sh >> ${installlogsPath}/dpdk/DpdkRunning-${Date}.log 2>&1
+			Msgbox "网卡设定 ${Array_NetworkCode[@]} 完成"
+		fi			
+	fi
+}
+function DpdkInstall
+{
+	mkdir -p ${dpdk_installpath} >> ${installlogsPath}/dpdk/DpdkRunning-${Date}.log 2>&1
+	cd ${installPath}/dpdk >> ${installlogsPath}/dpdk/DpdkRunning-${Date}.log 2>&1
+	tar -zxvf ${installPath}/dpdk/${dpdk_package} -C ${dpdk_installpath} >> ${installlogsPath}/dpdk/DpdkRunning-${Date}.log 2>&1
+	cd ${dpdk_installpath}/dpdk-* >> ${installlogsPath}/dpdk/DpdkRunning-${Date}.log 2>&1
+	SetMemory
+	SetNetworkCard
+	Msgbox "开始安装dpdk"
+	sh DPDKSetup.sh setup &>> ${installlogsPath}/dpdk/DpdkCheck-${Date}.log 2>&1
+	LOADING "dpdk 安装中....." 0.001
+	CheckNews=`tail -n 35 ${installlogsPath}/dpdk/DpdkCheck-${Date}.log`
+	whiptail --title "请检查dpdk安装情况" --yes-button "确定" --no-button "取消"  --yesno "`eval echo '$'{CheckNews}`" 30 80 --scrolltext --fb --backtitle  "${back_title}"
+	if [ $? -ne 0 ];then
+		exit
+	fi
+	Msgbox "开始启动 dpdk"
+	sh DPDKSetup.sh start &>> ${installlogsPath}/dpdk/DpdkRunning-${Date}.log 2>&1
+	echo  "#------dpdk 启动情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+	sh DPDKSetup.sh status &>> ${installlogsPath}/VerificationResult-${Date}.log 2>&1
+}
+

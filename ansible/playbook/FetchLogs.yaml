@@ -1,0 +1,27 @@
+#===============================================================================
+#2020-05-08 by yangyuntian
+#===============================================================================
+##将各个Client的安装日志copy到master###
+---
+- hosts: "{{host}}"
+  gather_facts: true
+  vars_files:
+    - playbook.conf
+
+  tasks:
+    - name: "创建 master 汇聚日志目录"
+      file:
+        path: "{{VerificationResult_logs_path}}/VerificationResult-{{DATE}}/"
+        state: directory
+        mode: '0777'
+        recurse: yes
+      connection: local
+
+    - name: "汇聚各个 client VerificationResult 日志"
+      fetch:
+        src: "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"
+        dest: "{{VerificationResult_logs_path}}/VerificationResult-{{DATE}}/"
+        flat: yes
+        fail_on_missing: no
+        validate_checksum: no
+

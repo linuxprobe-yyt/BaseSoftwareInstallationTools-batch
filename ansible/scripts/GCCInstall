@@ -1,0 +1,42 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-02 by yangyuntian 
+#===============================================================================
+#### GCC安装与升级####
+#===============================================================================
+##centos7系统版本安装###
+
+function GCCInstall_centos7
+{
+	cd ${ansible_dir}/lib/gcc/centos7/
+	yes|unzip gcc-4.8.5-39.el7.x86_64.zip >> ${ansible_dir}/logs/GccRunning-${Date}.log 2>&1
+	cd gcc-4.8.5-39.el7.x86_64 >> ${ansible_dir}/logs/GccRunning-${Date}.log 2>&1
+	rpm -Uvh *.rpm --nodeps --force >> ${ansible_dir}/logs/GccRunning-${Date}.log 2>&1
+
+	echo  "#------gcc安装情况------#" >> ${ansible_dir}/logs/GccRunning-${Date}.log 2>&1
+	gcc -dumpversion &>> ${ansible_dir}/logs/GccRunning-${Date}.log 2>&1
+	echo -e "\n" >> ${ansible_dir}/logs/GccRunning-${Date}.log 2>&1
+	LOADING "gcc安装中......" 0.01
+	sleep 2
+	Msgbox "gcc安装完成"
+	rm -rf ./gcc-4.8.5-39.el7.x86_64/ >> ${ansible_dir}/logs/GccRunning-${Date}.log 2>&1
+}
+
+#===============================================================================
+##centos6系统版本安装###
+
+function GCCInstall_centos6
+{	
+	cd ${ansible_dir}/lib/gcc/centos6/
+	yes|unzip gcc-4.4.7-18.el6.x86_64.zip >> ${ansible_dir}/logs/GccRunning-${Date}.log 2>&1
+	cd gcc-4.4.7-18.el6.x86_64/ >> ${ansible_dir}/logs/GccRunning-${Date}.log 2>&1
+	rpm -Uvh *.rpm --nodeps --force >> ${ansible_dir}/logs/GccRunning-${Date}.log 2>&1
+	
+	echo  "#------gcc安装情况------#" >> ${ansible_dir}/logs/GccRunning-${Date}.log 2>&1
+	gcc -dumpversion &>> ${ansible_dir}/logs/GccRunning-${Date}.log 2>&1
+	echo -e "\n" >> ${ansible_dir}/logs/GccRunning-${Date}.log 2>&1
+	LOADING "gcc安装中......" 0.01
+	sleep 2
+	Msgbox "gcc安装完成"
+	rm -rf ./gcc-4.4.7-18.el6.x86_64/ >> ${ansible_dir}/logs/GccRunning-${Date}.log 2>&1
+}

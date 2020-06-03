@@ -1,0 +1,85 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-02 by yangyuntian 
+#===============================================================================
+
+#===============================================================================
+####JDK安装与升级####
+#===============================================================================
+##JDK安装###
+
+function JDKInstall
+{
+# 1. 安装jdk-xxx-linux-x64.rpm
+    cd ${installPath}/jdk
+    chmod +x jdk-${jdk_version}-linux-x64.rpm >> ${installlogsPath}/JDKRunning-${Date}.log 2>&1
+    yes|rpm -ivh jdk-${jdk_version}-linux-x64.rpm --force >> ${installlogsPath}/JDKRunning-${Date}.log 2>&1
+    ProgressBar10
+    ProgressBar30
+# 2. 配置链接，创建快捷方式以取代 GCJ，制作 java 和 javac 的快捷方式(静态链接），以代替 gcj。
+    cd /usr/bin
+    lnversion=/usr/java/jdk${jdk_ver}/bin >> ${installlogsPath}/JDKRunning-${Date}.log 2>&1
+    ln -s -f ${lnversion}/java ./java >> ${installlogsPath}/JDKRunning-${Date}.log 2>&1
+    ln -s -f ${lnversion}/javac ./javac >> ${installlogsPath}/JDKRunning-${Date}.log 2>&1
+
+    ProgressBar50
+# 3. 配置环境变量
+    cd /etc/profile.d
+
+# 修改java.sh，增加如下内容
+    echo "export JAVA_HOME=/usr/java/jdk${jdk_ver}" >>./java.sh
+    echo "export JAVA_BIN=/usr/java/jdk${jdk_ver}/bin" >>./java.sh
+    echo "export PATH=\$PATH:\${JAVA_HOME}/bin" >>./java.sh
+    echo "export CLASSPATH=.:\${JAVA_HOME}/lib/dt.jar:\${JAVA_HOME}/lib/tools.jar" >>./java.sh
+
+    ProgressBar80
+# 同样内容增加到/etc/profile文件中
+    echo "export JAVA_HOME=/usr/java/jdk${jdk_ver}" >>/etc/profile
+    echo "export JAVA_BIN=/usr/java/jdk${jdk_ver}/bin" >>/etc/profile
+    echo "export PATH=\$PATH:\${JAVA_HOME}/bin" >>/etc/profile
+    echo "export CLASSPATH=.:\${JAVA_HOME}/lib/dt.jar:\${JAVA_HOME}/lib/tools.jar" >>/etc/profile
+    source /etc/profile
+# 检查Java版本
+    echo  "#------JDK安装情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+    java -version &>> ${installlogsPath}/VerificationResult-${Date}.log
+    echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log
+    ProgressBar100
+    sleep 2
+    Msgbox "JDK安装完成"
+    
+}
+#===============================================================================
+##JDK 升级###
+
+function JDKUpgrade
+{
+# 1. 解压jdk-xxx-linux-x64.tar.gz
+	yes|cp ${installPath}/jdk/jdk-${jdk_version}-linux-x64.tar.gz /usr/java >> ${installlogsPath}/JDKUpdate-${Date}.log 2>&1
+	ProgressBar10
+	cd /usr/java >> ${installlogsPath}/JDKUpdate-${Date}.log 2>&1
+	tar -zxvf jdk-${jdk_version}-linux-x64.tar.gz >> ${installlogsPath}/JDKUpdate-${Date}.log 2>&1
+	ProgressBar50
+
+# 2. 配置链接，创建快捷方式以取代 GCJ，制作 java 和 javac 的快捷方式(静态链接），以代替 gcj。
+	cd /usr/bin >> ${installlogsPath}/JDKUpdate-${Date}.log 2>&1
+	lnversion=/usr/java/jdk${jdk_ver}/bin >> ${installlogsPath}/JDKUpdate-${Date}.log 2>&1
+	ln -s -f ${lnversion}/java ./java >> ${installlogsPath}/JDKUpdate-${Date}.log 2>&1
+	ln -s -f ${lnversion}/javac ./javac >> ${installlogsPath}/JDKUpdate-${Date}.log 2>&1
+	ProgressBar80
+# 3. 配置环境变量
+	cd /etc/profile.d >> ${installlogsPath}/JDKUpdate-${Date}.log 2>&1
+
+# 修改/etc/profile.d/java.sh/java.sh文件中jdk版本
+	sed -i "s/jdk$jdk_ver_src/jdk$jdk_ver/g" /etc/profile.d/java.sh >> ${installlogsPath}/JDKUpdate-${Date}.log 2>&1
+# 修改/etc/profile文件中jdk版本
+	sed -i "s/jdk$jdk_ver_src/jdk$jdk_ver/g" /etc/profile >> ${installlogsPath}/JDKUpdate-${Date}.log 2>&1
+	rm -rf /usr/java/jdk-${jdk_version}-linux-x64.tar.gz >> ${installlogsPath}/JDKUpdate-${Date}.log 2>&1
+# 检查Java版本
+	source /etc/profile
+	echo  "#------JDK更新情况------#" >> ${installlogsPath}/UpgradeVerificationResult-${Date}.log
+	java -version &>> ${installlogsPath}/UpgradeVerificationResult-${Date}.log
+	echo -e "\n" >> ${installlogsPath}/UpgradeVerificationResult-${Date}.log
+	ProgressBar100
+	sleep 2
+	Msgbox "JDK安装完成"
+}

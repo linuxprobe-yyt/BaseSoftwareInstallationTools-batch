@@ -1,0 +1,66 @@
+#===============================================================================
+#2020-05-08 by yangyuntian
+#===============================================================================
+---
+- hosts: "{{ host }}"
+  gather_facts: true
+  vars_files:
+    - playbook.conf
+
+  tasks:
+    - name: "解压 lrzsz 安装包"
+      unarchive:
+        src: "{{dest_packages_path}}/lrzsz/{{lrzsz_package}}"
+        dest: /usr/local/src
+        copy: no
+        mode: '0755'
+      register: tar_result
+      ignore_errors: false
+
+    - name: "configure lrzsz"
+      shell: ./configure
+      args:
+        chdir: "/usr/local/src/lrzsz-{{lrzsz_version}}"
+      register: configure_result
+      ignore_errors: false
+      when: tar_result is changed
+
+    - name: "make lrzsz"
+      make:
+        chdir: "/usr/local/src/lrzsz-{{lrzsz_version}}"
+        params:
+          NUM_THREADS: "{{ansible_processor_vcpus}}"
+      register: make_reuslt
+      when: configure_result is changed
+
+    - name: "make install lrzsz"
+      make:
+        chdir: "/usr/local/src/lrzsz-{{lrzsz_version}}"
+        target: install
+        params:
+          NUM_THREADS: "{{ansible_processor_vcpus}}"
+      when: make_reuslt is changed
+
+    - name: "rz 软连接"
+      file:
+        src: /usr/local/bin/lrz
+        dest: /usr/bin/rz
+        owner: root
+        group: root
+        mode: '0755'
+        state: link
+        force: yes
+
+    - name: "sz 软连接"
+      file:
+        src: /usr/local/bin/lsz
+        dest: /usr/bin/sz
+        owner: root
+        group: root
+        mode: '0755'
+        state: link
+        force: yes
+
+    - name: "检查 lrzsz 运行状态"
+      shell: echo  "#------lrzsz 安装情况------#" >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log" &&
+             rz --version &>> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"

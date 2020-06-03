@@ -1,0 +1,13 @@
+#!/bin/bash
+#===============================================================================
+#2020-05-06 by yangyuntian
+#===============================================================================
+function EditPlaybook
+{
+  sed -i s#"DATE\:.*"#"DATE\: ${Date}"#g ${ansible_dir}/playbook/playbook.conf
+  sed -i s#"src\_basesoft\_path\:.*"#"src\_basesoft\_path\: ${DIR_INSTALL}\/Basesoftware.zip"#g ${ansible_dir}/playbook/playbook.conf
+  sed -i s#"VerificationResult\_logs\_path\:.*"#"VerificationResult\_logs\_path\: ${installlogsPath}\/"#g ${ansible_dir}/playbook/playbook.conf
+  sed -i s#"dest\_install\_path\:.*"#"dest\_install\_path\: ${DIR_INSTALL}\/"#g ${ansible_dir}/playbook/playbook.conf
+  sed -i s#"dest\_logs\_path\:.*"#"dest\_logs\_path\: ${basesoft_dir}\/logs"#g ${ansible_dir}/playbook/playbook.conf
+  sed -i s#"dest\_packages\_path\:.*"#"dest\_packages\_path\: ${basesoft_dir}\/packages"#g ${ansible_dir}/playbook/playbook.conf
+}

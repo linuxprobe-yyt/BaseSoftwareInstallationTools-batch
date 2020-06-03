@@ -1,0 +1,17 @@
+# This is the default ansible 'hosts' file.
+
+[dnvweb]
+10.10.11.12
+10.10.11.35
+10.10.11.36
+10.10.11.37
+10.10.11.8
+10.10.11.13
+
+#[database]
+10.10.11.50
+
+
+#[collector]
+
+#[trans]

@@ -1,0 +1,74 @@
+#===============================================================================
+#2020-05-08 by yangyuntian
+#===============================================================================
+---
+ - hosts: "{{ host }}"
+   gather_facts: true
+   vars_files:
+     - playbook.conf
+
+   tasks:
+      - name: "解压 sysstat 安装包"
+        unarchive:
+          src: "{{dest_packages_path}}/sysstat/{{sysstat_package}}"
+          dest: /usr/local/src
+          copy: no
+          mode: '0777'
+        register: tar_result
+        ignore_errors: true
+
+      - name: "./configure sysstat"
+        shell: "./configure --prefix={{sysstat_install_path}}"
+        args:
+          chdir: "/usr/local/src/sysstat-{{sysstat_version}}"
+        ignore_errors: true
+        when: tar_result is changed
+
+      - name: "make sysstat"
+        make:
+          chdir: "/usr/local/src/sysstat-{{sysstat_version}}"
+          params:
+            NUM_THREADS: "{{ansible_processor_vcpus}}"
+
+      - name: "make install sysstat"
+        make:
+          chdir: "/usr/local/src/sysstat-{{sysstat_version}}"
+          target: install
+          params:
+            NUM_THREADS: "{{ansible_processor_vcpus}}"
+
+      - name: "/usr/local/sysstat 修改权限"
+        file:
+          path: "{{sysstat_install_path}}"
+          state: directory
+          recurse: yes
+          owner: root
+          group: root
+          mode: '0755'
+
+      - name: "建立/usr/bin/sysstat 软连接"
+        file:
+          src: "/usr/local/src/sysstat-{{sysstat_version}}/sysstat"
+          dest: /usr/bin/sysstat
+          owner: root
+          group: root
+          mode: '0755'
+          state: link
+          force: yes
+
+      - name: "建立/usr/bin/sar 软连接"
+        file:
+          src: "{{sysstat_install_path}}/bin/sar"
+          dest: /usr/bin/sar
+          owner: root
+          group: root
+          mode: '0755'
+          state: link
+          force: yes
+
+      - name: "启动 sysstat"
+        shell: /usr/bin/sysstat start
+
+      - name: "检查 sysstat 安装情况"
+        shell: echo  "#------sysstat安装情况------#" >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log" &&
+               sar -V &>> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"

@@ -1,0 +1,27 @@
+#===============================================================================
+#2020-05-08 by yangyuntian
+#===============================================================================
+---
+- hosts: "{{ host }}"
+  gather_facts: false
+  vars_files:
+    - playbook.conf
+  tasks:
+    - name: "创建目录"
+      file:
+        dest: "{{dest_install_path}}"
+        state: directory
+        mode: '0777'
+
+    - name: "拷贝基础软件包到远端服务器"
+      copy:
+        src: "{{src_basesoft_path}}"
+        dest: "{{dest_install_path}}"
+        mode: '0777'
+
+    - name: "解压basesoftware"
+      unarchive:
+        src: "{{src_basesoft_path}}"
+        dest: "{{dest_install_path}}"
+        copy: no
+        mode: '0777'

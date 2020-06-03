@@ -1,0 +1,43 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-10 by yangyuntian 
+#===============================================================================
+
+#===============================================================================
+####iotop安装与升级####
+#===============================================================================
+##centos7系统版本安装###
+
+function IotopInstall_centos7
+{
+	cd ${installPath}/iotop/centos7/
+	ProgressBar10
+	yes|rpm -ivh ${Iotop_package_7} >> ${installlogsPath}/IotopRunning-${Date}.log 2>&1
+	ProgressBar80
+	echo  "#------iotop安装情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+	iotop --version &>> ${installlogsPath}/VerificationResult-${Date}.log 2>&1
+	echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log
+	ProgressBar100
+	sleep 2
+	Msgbox "iotop安装完成"	
+}
+
+#===============================================================================
+##centos6系统版本安装###
+
+function IotopInstall_centos6
+{
+    cd ${installPath}/iotop/centos6/
+    tar -xvf ${Iotop_package_6}  >> ${installlogsPath}/IotopRunning-${Date}.log 2>&1
+    ProgressBar10
+    cd ./${iotop_version_6}
+    python setup.py build  &>> ${installlogsPath}/IotopRunning-${Date}.log 2>&1
+    ProgressBar50
+    python setup.py install  &>> ${installlogsPath}/IotopRunning-${Date}.log 2>&1
+    echo  "#------iotop安装情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+    iotop --version &>> ${installlogsPath}/VerificationResult-${Date}.log
+    echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log
+    ProgressBar100
+    sleep 2
+    Msgbox "iotop安装完成"
+}

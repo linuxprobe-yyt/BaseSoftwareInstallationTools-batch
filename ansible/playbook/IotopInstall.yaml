@@ -1,0 +1,37 @@
+#===============================================================================
+#2020-05-08 by yangyuntian
+#===============================================================================
+---
+- hosts: "{{ host }}"
+  gather_facts: true
+  vars_files:
+    - playbook.conf
+
+  tasks:
+    - name: "centos7 -> 安装iotop"
+      shell: "rpm -Uvh {{dest_packages_path}}/iotop/centos7/{{iotop_package_7}} --nodeps --force"
+      ignore_errors: true
+      when: ansible_distribution_major_version == "7"
+
+    - name: "centos6 -> 安装iotop"
+      yum:
+        name: "{{dest_packages_path}}/iotop/centos6/{{iotop_package_6}}"
+        disablerepo: "*"
+        state: latest
+      register: rpm_result
+      ignore_errors: true
+      when: ansible_distribution_major_version == "6"
+
+    - name: "centos6 -> 编辑/usr/sbin/iotop"
+      lineinfile:
+        dest: /usr/sbin/iotop
+        state: present
+        regexp: '#!/usr/bin/python'
+        line: '#!/usr/bin/python2.6'
+      connection: local
+      when: rpm_result is changed and ansible_distribution_major_version == "6"
+
+    - name: "检查 iotop 运行状态"
+      shell: echo  "#------iotop安装情况------#" >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log" &&
+             iotop --version &>> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"
+

@@ -1,0 +1,144 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-02 by yangyuntian 
+#===============================================================================
+
+#===============================================================================
+####Tomcat安装与升级####
+#===============================================================================
+##centos7系统版本安装###
+function TomcatInstall_centos7
+{
+# 安装路径：/home/tomcat/apache...
+# 1. 建立一个tomcat用户，主目录为/home/tomcat。将apache-tomcat-7.0.65-hh-x.x.x.tar.gz解压到/home/tomcat下。
+
+    yes|cp ${installPath}/tomcat/apache-tomcat-${tomcat_version}-hh-${tomcat_hh_version}.tar.gz /home/tomcat >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    cd /home/tomcat >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    tar zxvf apache-tomcat-${tomcat_version}-hh-${tomcat_hh_version}.tar.gz  >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    ProgressBar10
+    chown -R tomcat.tomcat /home/tomcat >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    chmod a+x /home/tomcat >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+# 2. 配置Tomcat服务，需要用项目commons-daemon中的jsvc工具。Tomcat安装完后就带有这个工具的源码{tomcat}/bin/jsvc.tar.gz。
+    cd /home/tomcat/apache-tomcat-${tomcat_version}/bin >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    tar zxvf commons-daemon-native.tar.gz >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    cd commons-daemon-1.0.15-native-src/unix >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    chmod +x configure >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    ./configure --with-java=/usr/java/jdk${jdk_ver} &>> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    ProgressBar50
+    make &>> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    ProgressBar80
+# 此处有检验内容，需要特别注意.(检验)
+# [tomcat@linux]$ ./jsvc -help
+    cp jsvc ../../   >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+
+# 3. 修改tomcat.service启动脚本中的路径及用户配置，拷贝脚本到/etc/systemd/system/目录下的tomcat.service文件，给该脚本赋予可执行权限(chmod +x tomcat)，可以使用命令systemctl start|stop tomcat 来验证守护进程是否可以正常启动和停止。
+    chmod +x /home/tomcat/apache-tomcat-${tomcat_version}/bin/tomcat.service >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    yes|cp /home/tomcat/apache-tomcat-${tomcat_version}/bin/tomcat.service /etc/systemd/system/tomcat.service >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+
+# 此处有检验内容，需要特别注意.(检验)
+    systemctl daemon-reload >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+# 设置为开机自启动
+    systemctl enable tomcat >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    systemctl start tomcat >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+#    sleep 5
+#    systemctl stop tomcat >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+
+# 4. 修改tomcat的访问端口，改为80
+# 修改<Connector port="8080" maxHttp......---><Connector port="80" maxHttp......
+# 此处应修改，多加注意。
+    yes|cp /home/tomcat/apache-tomcat-${tomcat_version}/conf/server.xml /home/tomcat/apache-tomcat-${tomcat_version}/conf/server_bak.xml >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    sed -i '69 s/8080/80/' /home/tomcat/apache-tomcat-${tomcat_version}/conf/server.xml
+
+    echo  "#------Tomcat安装情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+    systemctl restart tomcat &>> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    systemctl status tomcat |grep -w Active |awk '{sub(/^[ \t]+/,"");print $0}' &>> ${installlogsPath}/VerificationResult-${Date}.log
+    echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log
+    chown -R tomcat.tomcat /home/tomcat
+    ProgressBar100
+    sleep 2
+    Msgbox "tomcat安装完成"
+}
+#===============================================================================
+###tomcat升级###
+function TomcatUpgrade_centos7
+{
+	TomcatInstall_centos7
+	yes|cp –r  /home/tomcat/apache-tomcat-${tomcat_ver_src}/webapps/*   /home/tomcat/apache-tomcat-${tomcat_version}/webapps/ >> ${installlogsPath}/TomcatUpgrade-${Date}.log 2>&1
+	echo  "#------Tomcat升级情况------#" >> ${installlogsPath}/UpgradeVerificationResult-${Date}.log
+	systemctl restart tomcat &>> ${installlogsPath}/TomcatUpgrade-${Date}.log 2>&1
+	systemctl status tomcat |grep -w Active |awk '{sub(/^[ \t]+/,"");print $0}' &>> ${installlogsPath}/UpgradeVerificationResult-${Date}.log
+	echo -e "\n" >> ${installlogsPath}/UpgradeVerificationResult-${Date}.log
+	chown -R tomcat.tomcat /home/tomcat
+	Msgbox "tomcat升级完成"
+}
+#===============================================================================
+##centos6系统版本安装###
+##安装tomcat
+
+function TomcatInstall_centos6
+{
+# 安装路径：/home/tomcat/apache...
+# 1. 建立一个tomcat用户，主目录为/home/tomcat。将apache-tomcat-7.0.65-hh-x.x.x.tar.gz解压到/home/tomcat下。
+    yes|cp ${installPath}/tomcat/apache-tomcat-${tomcat_version}-hh-${tomcat_hh_version}.tar.gz /home/tomcat >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    cd /home/tomcat >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    tar zxvf apache-tomcat-${tomcat_version}-hh-${tomcat_hh_version}.tar.gz >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    chown -R tomcat.tomcat /home/tomcat
+    chmod a+x /home/tomcat
+    ProgressBar10
+# 2. 配置Tomcat服务，需要用项目commons-daemon中的jsvc工具。Tomcat安装完后就带有这个工具的源码{tomcat}/bin/jsvc.tar.gz。
+    cd /home/tomcat/apache-tomcat-${tomcat_version}/bin >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+	tar zxvf commons-daemon-native.tar.gz >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    cd commons-daemon-1.0.15-native-src/unix >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+ #   tar zxvf jsvc.tar.gz >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+ #   cd jsvc-src
+    chmod +x configure
+    ./configure --with-java=/usr/java/jdk${jdk_ver} &>> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    ProgressBar30
+    make &>> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    ProgressBar50
+# 此处有检验内容，需要特别注意.(检验)
+# [tomcat@linux]$ ./jsvc -help
+
+# 3. 修改tomcat启动脚本中的路径及用户配置，拷贝脚本到/etc/rc.d/init.d目录下的tomcat文件，给该脚本赋予可执行权限(chmod +x tomcat)，可以使用命令/etc/rc.d/init.d/tomcat start|stop 来验证守护进程是否可以正常启动和停止。
+    chmod +x ${installPath}/tomcat/tomcat
+    yes|cp ${installPath}/tomcat/tomcat /etc/rc.d/init.d/tomcat >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+
+# 此处有检验内容，需要特别注意.(检验)
+#    /etc/rc.d/init.d/tomcat start >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+#    sleep 5
+#    /etc/rc.d/init.d/tomcat stop >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+
+# 4. 把这个脚本设置成系统启动时自动执行，系统关闭时自动停止：
+    chkconfig --add tomcat
+    ProgressBar80
+# 5. 修改tomcat的访问端口，改为80
+# 修改<Connector port="8080" maxHttp......---><Connector port="80" maxHttp......
+# 此处应修改，多加注意。
+    yes|cp /home/tomcat/apache-tomcat-${tomcat_version}/conf/server.xml /home/tomcat/apache-tomcat-${tomcat_version}/conf/server_bak.xml >> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    sed -i '69 s/8080/80/' /home/tomcat/apache-tomcat-${tomcat_version}/conf/server.xml
+    
+    echo  "#------Tomcat安装情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+    service tomcat start &>> ${installlogsPath}/TomcatRunning-${Date}.log 2>&1
+    service tomcat status >> ${installlogsPath}/VerificationResult-${Date}.log
+    echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log
+    chown -R tomcat.tomcat /home/tomcat
+    ProgressBar100
+    sleep 2
+    Msgbox "tomcat安装完成"
+}
+#===============================================================================
+###tomcat升级###
+function TomcatUpdate_centos6
+{
+    TomcatInstall_centos6
+    yes|cp –r  /home/tomcat/apache-tomcat-${tomcat_ver_src}/webapps/*   /home/tomcat/apache-tomcat-${tomcat_version}/webapps/ 
+    echo  "#------Tomcat升级情况------#" >> ${installlogsPath}/UpgradeVerificationResult-${Date}.log
+    service tomcat restart &>> ${installlogsPath}/TomcatUpgrade-${Date}.log 2>&1
+    service tomcat status >> ${installlogsPath}/UpgradeVerificationResult-${Date}.log
+    echo -e "\n" >> ${installlogsPath}/UpgradeVerificationResult-${Date}.log
+    chown -R tomcat.tomcat /home/tomcat
+    Msgbox "tomcat升级完成"
+}
+
+
+

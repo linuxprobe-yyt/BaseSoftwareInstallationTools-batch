@@ -1,0 +1,42 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-02 by yangyuntian 
+#===============================================================================
+
+####进度条####
+
+function LOADING
+{
+	{ for ((p = 0 ; p <= 100 ; p+=1))
+		do
+			sleep $2
+			echo $p
+		done
+	} | whiptail --gauge "$1" 6 60 0
+
+}
+
+function ProgressBar10
+{
+
+    echo -e "安装进度: \n"
+    echo "#####                         (10%)"        
+}
+
+function ProgressBar30
+{
+    echo "#######                       (30%)"        
+}
+
+function ProgressBar50
+{
+    echo "##############                (50%)"        
+}
+function ProgressBar80
+{
+    echo "########################      (80%)"        
+}
+function ProgressBar100
+{
+    echo "############################# (100%)"        
+}

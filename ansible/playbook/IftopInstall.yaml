@@ -1,0 +1,33 @@
+#===============================================================================
+#2020-05-08 by yangyuntian
+#===============================================================================
+---
+- hosts: "{{ host }}"
+  gather_facts: true
+  vars_files:
+    - playbook.conf
+
+  tasks:
+    - name: "centos7 -> 安装iftop"
+      shell: "rpm -Uvh {{item}} --nodeps --force"
+      with_items:
+        - "{{dest_packages_path}}/iftop/centos7/{{libpcap_package_7}}"
+        - "{{dest_packages_path}}/iftop/centos7/{{iftop_package_7}}"
+      ignore_errors: true
+      when: ansible_distribution_major_version == "7"
+
+    - name: "centos6 -> 安装iftop"
+      yum:
+        name: "{{item}}"
+        disablerepo: "*"
+        state: latest
+      with_items:
+        - "{{dest_packages_path}}/iftop/centos6/{{libpcap_package_6}}"
+        - "{{dest_packages_path}}/iftop/centos6/{{iftop_package_6}}"
+      ignore_errors: true
+      when: ansible_distribution_major_version == "6"
+
+    - name: "检查 iftop 运行状态"
+      shell: echo  "#------iftop安装情况------#" >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log" &&
+             iftop -h |grep -w version &>> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"
+

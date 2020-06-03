@@ -1,0 +1,60 @@
+#===============================================================================
+#2020-05-08 by yangyuntian
+#===============================================================================
+---
+- hosts: "{{ host }}"
+  gather_facts: true
+  vars_files:
+    - playbook.conf
+
+  tasks:
+    - name: "判断主机是否安装 gcc"
+      command: gcc -dumpversion
+      register: gcc_version_result
+      ignore_errors: true
+
+    - name: "gcc已安装，显示 version 信息"
+      debug:
+        var: gcc_version_result.stdout
+        verbosity: 0
+      when: gcc_version_result.rc == 0
+
+    - name: "gcc 未安装，centos 7 -> 解压 gcc"
+      unarchive:
+        src: "{{dest_packages_path}}/gcc/centos7/{{gcc_package_7}}"
+        dest: /usr/local/src
+        copy: no
+        mode: '0777'
+      register: tar_result
+      ignore_errors: false
+      when: gcc_version_result.rc != 0 and ansible_distribution_major_version == "7"
+
+    - name: "centos 7 -> 安装 gcc"
+      shell: rpm -Uvh *.rpm --nodeps --force
+      args:
+        chdir: "/usr/local/src/{{gcc_version_7}}"
+      ignore_errors: false
+      when: tar_result is changed and ansible_distribution_major_version == "7"
+
+    - name: "gcc 未安装，centos 6 -> 解压 gcc"
+      unarchive:
+        src: "{{dest_packages_path}}/gcc/centos6/{{gcc_package_6}}"
+        dest: /usr/local/src
+        copy: no
+        mode: '0777'
+      register: tar_result
+      ignore_errors: false
+      when: gcc_version_result.rc != 0 and ansible_distribution_major_version == "6"
+
+    - name: "centos 6 -> 安装 gcc"
+      shell: rpm -Uvh *.rpm --nodeps --force
+      args:
+        chdir: "/usr/local/src/{{gcc_version_6}}"
+      when: tar_result is changed and ansible_distribution_major_version == "6"
+
+    - name: "检查 gcc "
+      shell: echo  "#------gcc安装情况------#" >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log" &&
+             gcc -dumpversion &>> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"
+
+
+

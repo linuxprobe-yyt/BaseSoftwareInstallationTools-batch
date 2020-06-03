@@ -1,0 +1,32 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-02 by yangyuntian 
+#===============================================================================
+
+#===============================================================================
+####sysstat安装与升级####
+#===============================================================================
+
+function SysstatInstall
+{
+    cd ${installPath}/sysstat
+    tar -zxvf ${Sysstat_package}  >> ${installlogsPath}/SysstatRunning-${Date}.log 2>&1
+    ProgressBar10
+    cd ${sysstat_version}/ >> ${installlogsPath}/SysstatRunning-${Date}.log 2>&1
+    ./configure  &>> ${installlogsPath}/SysstatRunning-${Date}.log 2>&1
+    ProgressBar30
+    make  &>> ${installlogsPath}/SysstatRunning-${Date}.log 2>&1
+    ProgressBar50
+    make install  &>> ${installlogsPath}/SysstatRunning-${Date}.log 2>&1
+    ProgressBar80
+    yes|cp ${installPath}/sysstat/${sysstat_version}/sysstat /usr/bin/sysstat  >> ${installlogsPath}/SysstatRunning-${Date}.log 2>&1
+    yes|cp  ${installPath}/sysstat/${sysstat_version}/sar /usr/bin/sar  >> ${installlogsPath}/SysstatRunning-${Date}.log 2>&1
+    sysstat start &>> ${installlogsPath}/SysstatRunning-${Date}.log 2>&1
+#echo "sysstat_install is done"
+    echo  "#------sysstat安装情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+    sar -V &>> ${installlogsPath}/VerificationResult-${Date}.log 2>&1
+    echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log
+    ProgressBar100
+    sleep 2
+    Msgbox "sysstat安装完成"
+}

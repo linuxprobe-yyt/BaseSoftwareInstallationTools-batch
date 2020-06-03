@@ -1,0 +1,27 @@
+---
+- hosts: "{{ host }}"
+  gather_facts: true
+  vars_files:
+    - playbook.conf
+
+  tasks:
+    - name: "添加用户组tomcat"
+      group:
+        name: tomcat
+        state: present
+        system: no
+      ignore_errors: true
+
+    - name: "添加用户tomcat"
+      user:
+        name: tomcat
+        group: tomcat
+        shell: /sbin/nologin
+        createhome: yes
+        home: /home/tomcat
+        state: present
+      ignore_errors: true
+
+    - name: "检查添加用户 tomcat 情况"
+      shell: echo  "#------用户添加情况------#" >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log" &&
+             cat /etc/passwd |grep -w tomcat >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"

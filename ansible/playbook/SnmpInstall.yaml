@@ -1,0 +1,56 @@
+#===============================================================================
+#2020-05-08 by yangyuntian
+#===============================================================================
+---
+- hosts: "{{ host }}"
+  gather_facts: true
+  vars_files:
+    - playbook.conf
+
+  tasks:
+    - name: "解压 snmp 安装包"
+      unarchive:
+        src: "{{dest_packages_path}}/snmp/{{snmp_package}}"
+        dest: /usr/local/src
+        copy: no
+        mode: '0755'
+      register: tar_result
+      ignore_errors: false
+
+    - name: "configure snmp"
+      shell: echo -e "\n"|./configure
+      args:
+        chdir: "/usr/local/src/net-snmp-{{snmp_version}}"
+      register: configure_result
+      ignore_errors: false
+      when: tar_result is changed
+
+    - name: "make snmp"
+      make:
+        chdir: "/usr/local/src/net-snmp-{{snmp_version}}"
+        params:
+          NUM_THREADS: "{{ansible_processor_vcpus}}"
+      register: make_result
+      when: configure_result is changed
+
+    - name: "make install snmp"
+      make:
+        chdir: "/usr/local/src/net-snmp-{{snmp_version}}"
+        target: install
+        params:
+          NUM_THREADS: "{{ansible_processor_vcpus}}"
+      when: make_result is changed
+
+    - name: "snmpwalk 软连接"
+      file:
+        src: /usr/local/bin/snmpwalk
+        dest: /usr/bin/snmpwalk
+        owner: root
+        group: root
+        mode: '0755'
+        state: link
+        force: yes
+
+    - name: "检查 snmp 运行状态"
+      shell: echo  "#------snmp 安装情况------#" >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log" &&
+             snmpwalk --version &>> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"

@@ -1,0 +1,57 @@
+#!/bin/bash
+#===============================================================================
+#2020-03-02 by yangyuntian 
+#===============================================================================
+
+#===============================================================================
+#### iftop安装与升级 ####
+#===============================================================================
+##centos7系统版本安装###
+
+function IftopInstall_centos7
+{
+	cd ${installPath}/iftop/centos7/
+	ProgressBar10
+	yes|rpm -ivh libpcap-1.5.3-11.el7.x86_64.rpm >> ${installlogsPath}/IftopRunning-${Date}.log 2>&1
+	yes|rpm -ivh ${Iftop_package_7} >> ${installlogsPath}/IftopRunning-${Date}.log 2>&1
+	ProgressBar80
+	echo  "#------iftop安装情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+	iftop -h |grep -w version &>> ${installlogsPath}/VerificationResult-${Date}.log 2>&1
+	echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log
+	ProgressBar100
+	sleep 2
+	Msgbox "iftop安装完成"
+}
+#===============================================================================
+##centos6系统版本安装###
+
+function IftopInstall_centos6
+{
+    cd ${installPath}/iftop/centos6
+    yes|rpm -ivh flex-2.5.35-8.el6.x86_64.rpm  >> ${installlogsPath}/IftopRunning-${Date}.log 2>&1
+    yes|rpm -ivh bison-2.4.1-5.el6.x86_64.rpm  >> ${installlogsPath}/IftopRunning-${Date}.log 2>&1
+    yes|rpm -ivh ncurses-devel-5.7-3.20090208.el6.x86_64.rpm  >> ${installlogsPath}/IftopRunning-${Date}.log 2>&1
+    ProgressBar10
+    tar -xvf libpcap-1.4.0.tar.gz  >> ${installlogsPath}/IftopRunning-${Date}.log 2>&1
+    cd libpcap-1.4.0
+    ./configure  &>> ${installlogsPath}/IftopRunning-${Date}.log 2>&1
+    make  &>> ${installlogsPath}/IftopRunning-${Date}.log 2>&1
+    make install  &>> ${installlogsPath}/IftopRunning-${Date}.log 2>&1
+    ProgressBar30
+    cd ${installPath}/iftop/centos6
+    tar -xvf ${Iftop_package_6}  >> ${installlogsPath}/IftopRunning-${Date}.log 2>&1
+    cd iftop-0.17
+    ./configure  &>> ${installlogsPath}/IftopRunning-${Date}.log 2>&1
+    ProgressBar50
+    make &>> ${installlogsPath}/IftopRunning-${Date}.log 2>&1
+    ProgressBar80
+    make install  &>> ${installlogsPath}/IftopRunning-${Date}.log 2>&1
+#测试iftop
+#echo "iftop_install is done"
+    echo  "#------iftop安装情况------#" >> ${installlogsPath}/VerificationResult-${Date}.log
+    iftop -h |grep -w version &>> ${installlogsPath}/VerificationResult-${Date}.log
+    echo -e "\n" >> ${installlogsPath}/VerificationResult-${Date}.log
+    ProgressBar100
+    sleep 2
+    Msgbox "iftop安装完成"
+}

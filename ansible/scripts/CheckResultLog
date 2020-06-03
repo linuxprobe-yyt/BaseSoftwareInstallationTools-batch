@@ -1,0 +1,10 @@
+#!/bin/bash
+#===============================================================================
+#2020-05-06 by yangyuntian
+#===============================================================================
+function CheckResultLog
+{
+  ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/FetchLogs.yaml
+  cat ${installlogsPath}/VerificationResult-${Date}/*.log
+  sleep 5
+}

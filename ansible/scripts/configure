@@ -1,0 +1,239 @@
+#! /bin/bash
+#===============================================================================
+#2020-03-02 by yangyuntian 
+#===============================================================================
+
+export LANG="zh_CN.UTF-8"
+
+# Source function library.
+source /etc/init.d/functions
+
+#### 基础软件安装 ######
+
+function SelectBasicSoftware
+{
+if [ -n "${1}" ];then
+  	Msgbox "向 client 拷贝基础软件包"
+    ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/BaseSoftCopy.yaml
+    sleep 3
+    ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/LocalIPaddress.yaml
+    sleep 3
+    ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/GCCInstall.yaml
+    sleep 3
+else
+    exit
+fi
+for softlist in $1
+do
+	if [ "${softlist}" == "AllUserAdd" ];then
+	  Msgbox "开始创建用户组和用户pgadmin和tomcat"
+		ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/UserAddpgadmin.yaml
+		ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/UserAddtomcat.yaml
+		sleep 3
+	elif [ "${softlist}" == "UserAddpgadmin" ];then
+	  Msgbox "开始创建用户组和用户pgadmin"
+		ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/UserAddpgadmin.yaml
+		sleep 3
+	elif [ "${softlist}" == "UserAddtomcat" ];then
+	  Msgbox "开始创建用户组和用户tomcat"
+		ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/UserAddtomcat.yaml
+		sleep 3
+	elif [ "${softlist}" == "JDK" ];then
+		Msgbox "开始安装JDK"
+		ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/JDKInstall.yaml
+		sleep 3
+	elif [ "${softlist}" == "Tomcat" ];then
+		Msgbox "开始安装Tomcat"
+		ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/TomcatInstall.yaml
+		sleep 3
+	elif [ "${softlist}" == "Postgresql" ];then
+		Msgbox "开始安装Postgresql"
+		ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/PostgresqlInstall.yaml
+		sleep 3
+	elif [ "${softlist}" == "Iftop" ];then
+		Msgbox "开始安装Iftop"
+		ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/IftopInstall.yaml
+		sleep 3
+	elif [ "${softlist}" == "Iotop" ];then
+		Msgbox "开始安装Iotop"
+		ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/IotopInstall.yaml
+		sleep 3
+	elif [ "${softlist}" == "Sysstat" ];then
+		Msgbox "开始安装Sysstat"
+		ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/SysstatInstall.yaml
+		sleep 3
+	elif [ "${softlist}" == "Lrzsz" ];then
+		Msgbox "开始安装Lrzsz"
+		ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/LrzszInstall.yaml
+		sleep 3
+	elif [ "${softlist}" == "snmp" ];then
+		Msgbox "开始安装snmp"
+		ansible-playbook -e host=${HOSTS} ${ansible_dir}/playbook/SnmpInstall.yaml
+		sleep 3
+	fi
+done
+}
+
+###DVNWeb服务器###
+
+function InstallBasicSoftware_DNVWeb
+{
+    soft_list=$(whiptail --title "DNVWeb基础软件" --checklist \
+    "请选择要安装的软件" 30 70 16 \
+    "AllUserAdd" "tomcat和pgadmin" ON \
+    "JDK" "${JDK_package}" ON \
+    "Tomcat" "${Tomcat_package}" ON \
+    "Postgresql" "${Postgresql_package}" ON \
+    "snmp" "${snmp_package}" ON \
+    "Iftop" "`eval echo '$'{Iftop_package_${sys_ver}}`" ON \
+    "Iotop" "`eval echo '$'{Iotop_package_${sys_ver}}`" ON \
+    "Sysstat" "${Sysstat_package}" ON \
+    "Lrzsz" "${Lrzsz_package}" ON --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+
+    if [ $? = 0 ]; then
+        if [ ! -n "${soft_list}" ]; then
+            Msgbox "至少选择一个软件"
+            InstallBasicSoftware_DNVWeb   
+        else
+            list_soft=$(echo  ${soft_list} |sed  's/"//g' )
+            Msgbox "默认选择项全部安装"
+			      HOSTS="dnvweb"
+            SelectBasicSoftware "${list_soft}"
+            CheckResultLog
+        fi
+    fi
+}
+
+###数据库服务器###
+
+function InstallBasicSoftware_DataBase
+{
+    soft_list=$(whiptail --title "数据库服务器基础软件" --checklist \
+    "请选择要安装的软件" 30 70 16 \
+    "UserAddpgadmin" "pgadmin" ON \
+    "JDK" "${JDK_package}" ON \
+    "Tomcat" "${Tomcat_package}" OFF \
+    "Postgresql" "${Postgresql_package}" ON \
+    "Iftop" "`eval echo '$'{Iftop_package_${sys_ver}}`" ON \
+    "Iotop" "`eval echo '$'{Iotop_package_${sys_ver}}`" ON \
+    "Sysstat" "${Sysstat_package}" ON \
+    "Lrzsz" "${Lrzsz_package}" ON --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+
+    if [ $? = 0 ]; then
+	    if [ ! -n "${soft_list}" ]; then
+		    Msgbox "至少选择一个软件"
+		    InstallBasicSoftware_DataBase   
+	    else
+		    list_soft=$(echo  ${soft_list} |sed  's/"//g' )
+		    Msgbox "默认选择项全部安装"
+			  HOSTS="database"
+		    SelectBasicSoftware "${list_soft}"
+		    CheckResultLog
+	    fi
+    fi
+}
+
+###采集服务器####
+
+function InstallBasicSoftware_Collector
+{
+    soft_list=$(whiptail --title "采集服务器基础软件" --checklist \
+    "请选择要安装的软件" 30 70 16 \
+    "UserAddpgadmin" "pgadmin" OFF \
+    "JDK" "${JDK_package}" ON \
+    "Tomcat" "${Tomcat_package}" OFF \
+    "Postgresql" "${Postgresql_package}" OFF \
+    "Iftop" "`eval echo '$'{Iftop_package_${sys_ver}}`" ON \
+    "Iotop" "`eval echo '$'{Iotop_package_${sys_ver}}`" ON \
+    "Sysstat" "${Sysstat_package}" ON \
+    "Lrzsz" "${Lrzsz_package}" ON  --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+
+    if [ $? = 0 ]; then
+	    if [ ! -n "${soft_list}" ]; then
+		    Msgbox "至少选择一个软件"
+		    InstallBasicSoftware_Collector   
+	    else
+		    list_soft=$(echo  ${soft_list} |sed  's/"//g' )
+		    Msgbox "默认选择项全部安装"
+			  HOSTS="collector"
+		    SelectBasicSoftware "${list_soft}"
+			  CheckResultLog
+	    fi
+    fi
+}
+
+
+###汇聚服务器###
+
+function InstallBasicSoftware_Trans
+{
+    soft_list=$(whiptail --title "汇聚服务器基础软件" --checklist \
+    "请选择要安装的软件" 30 70 16 \
+    "UserAddpgadmin" "pgadmin" OFF \
+    "JDK" "${JDK_package}" ON \
+    "Tomcat" "${Tomcat_package}" OFF \
+    "Postgresql" "${Postgresql_package}" OFF \
+    "Iftop" "`eval echo '$'{Iftop_package_${sys_ver}}`" ON \
+    "Iotop" "`eval echo '$'{Iotop_package_${sys_ver}}`" ON \
+    "Sysstat" "${Sysstat_package}" ON \
+    "Lrzsz" "${Lrzsz_package}" ON --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+
+    if [ $? = 0 ]; then
+	    if [ ! -n "${soft_list}" ]; then
+		    Msgbox "至少选择一个软件"
+		    InstallBasicSoftware_Trans   
+	    else
+		    list_soft=$(echo  ${soft_list} |sed  's/"//g' )
+		    Msgbox "默认选择项全部安装"
+			  HOSTS="trans"
+		    SelectBasicSoftware "${list_soft}"
+		    CheckResultLog
+	    fi
+    fi
+}
+
+
+###自主选择基础软件###
+
+function InstallBasicSoftware_FreeChoice
+{
+    soft_list=$(whiptail --title "自主选择基础软件" --checklist \
+    "请选择要安装的软件" 30 70 16 \
+    "UserAddpgadmin" "pgadmin" OFF \
+    "UserAddtomcat" "tomcat" OFF \
+    "JDK" "${JDK_package}" OFF \
+    "Tomcat" "${Tomcat_package}" OFF \
+    "Postgresql" "${Postgresql_package}" OFF \
+    "Iftop" "`eval echo '$'{Iftop_package_${sys_ver}}`" OFF \
+    "Iotop" "`eval echo '$'{Iotop_package_${sys_ver}}`" OFF \
+    "Sysstat" "${Sysstat_package}" OFF \
+    "Lrzsz" "${Lrzsz_package}" OFF \
+    "snmp" "${snmp_package}" OFF --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+
+    if [ $? = 0 ]; then
+	    if [ ! -n "${soft_list}" ]; then
+		    Msgbox "至少选择一个软件"
+		    InstallBasicSoftware_FreeChoice
+	    else
+		    list_soft=$(echo  ${soft_list} |sed  's/"//g' )
+		    Msgbox "自主选择项安装"
+		    HOSTS=${hosts_groups}
+		    SelectBasicSoftware "${list_soft}"
+		    CheckResultLog
+	    fi
+    fi
+}
+
+function HostsOrGroup
+{
+	hosts_groups=$(whiptail --title "指定主机或者主机组" --inputbox "\n注意：多个hosts或者groups用','分隔，选择全部填写: "all"。\n\n举例：10.10.11.2,10.10.11.3 或者 dnvweb,database 或者 10.10.11.12,dnvweb\n" 30 80 --fb --backtitle  "${back_title}" 3>&1 1>&2 2>&3)
+	if [ $? -eq 0 ];then
+	  if [ -z ${hosts_groups} ];then
+	    Msgbox "至少选择一个host或者group"
+	    HostsOrGroup
+	  else
+	    InstallBasicSoftware_FreeChoice
+	  fi
+	fi
+}
+

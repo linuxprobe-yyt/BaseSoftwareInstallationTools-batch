@@ -1,0 +1,23 @@
+#===============================================================================
+#2020-05-08 by yangyuntian
+#===============================================================================
+---
+- hosts: "{{ host }}"
+  gather_facts: true
+  vars_files:
+    - playbook.conf
+
+  tasks:
+    - name: "创建 VerificationResult 日志"
+      file:
+        path: "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"
+        state: touch
+        mode: '0777'
+
+    - name: "输出 client IP 到日志"
+      lineinfile:
+        dest: "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"
+        line: "{{item.host}}"
+      with_items:
+        - {host: ""}
+        - {host: "############### Client IP {{ansible_default_ipv4['address']}} ###############"}

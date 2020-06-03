@@ -1,0 +1,252 @@
+#===============================================================================
+#2020-05-08 by yangyuntian
+#===============================================================================
+---
+- hosts: "{{ host }}"
+  gather_facts: true
+  vars_files:
+    - playbook.conf
+
+  tasks:
+    - name: "删除旧postgresql残余文件"
+      file:
+        path: "{{item.path}}"
+        state: absent
+      ignore_errors: true
+      with_items:
+        - {path: "/usr/local/src/postgresql-{{postgresql_version}}"}
+        - {path: "{{postgresql_install_path}}"}
+        - {path: "{{postgresql_initdb_path}}"}
+
+    - name: "卸载系统初装非需求版本postgresql"
+      service:
+        name: postgresql
+        state: stopped
+      notify:
+        - remove postgresql
+      ignore_errors: true
+
+    - name: remove postgresql
+      yum:
+        name: postgresql
+        state: removed
+      ignore_errors: true
+
+    - name: "centos7 ->安装bzip2 和 zlib-devel "
+      shell: "yes|rpm -Uvh {{item}} --nodeps --force"
+      args:
+        chdir: "{{dest_packages_path}}/postgresql/"
+      with_items:
+        - "bzip2-1.0.6-13.el7.x86_64.rpm"
+        - "zlib-devel-1.2.7-18.el7.x86_64.rpm"
+      ignore_errors: true
+      when: ansible_distribution_major_version == "7"
+
+    - name: "centos6 ->安装bzip2 和 zlib-devel"
+      yum:
+        name: "{{item}}"
+        disablerepo: "*"
+        state: latest
+      with_items:
+        - "{{dest_packages_path}}/postgresql/bzip2-1.0.5-7.el6_0.x86_64.rpm"
+        - "{{dest_packages_path}}/postgresql/zlib-devel-1.2.3-29.el6.x86_64.rpm"
+      ignore_errors: true
+      when: ansible_distribution_major_version == "6"
+
+    - name: "解压 postgresql 安装包"
+      unarchive:
+        src: "{{dest_packages_path}}/postgresql/{{postgresql_package}}"
+        dest: /usr/local/src
+        copy: no
+        mode: '0777'
+      register: tar_result
+      ignore_errors: true
+
+    - name: "./configure postgresql"
+      shell: "./configure --prefix={{postgresql_install_path}} --without-readline --with-zlib"
+      args:
+        chdir: "/usr/local/src/postgresql-{{postgresql_version}}"
+      register: configure_error
+      ignore_errors: false
+      when: tar_result is changed
+
+    - name: "make postgresql"
+      make:
+        chdir: "/usr/local/src/postgresql-{{postgresql_version}}"
+        params:
+          NUM_THREADS: "{{ansible_processor_vcpus}}"
+
+    - name: "make install postgresql"
+      make:
+        chdir: "/usr/local/src/postgresql-{{postgresql_version}}"
+        target: install
+        params:
+          NUM_THREADS: "{{ansible_processor_vcpus}}"
+
+    - name: "/usr/local/pgsql 修改权限"
+      file:
+        path: "{{postgresql_install_path}}"
+        state: directory
+        recurse: yes
+        owner: pgadmin
+        group: pgadmin
+        mode: '0755'
+
+    - name: "make dblink"
+      make:
+        chdir: "/usr/local/src/postgresql-{{postgresql_version}}/contrib/dblink"
+        params:
+          NUM_THREADS: "{{ansible_processor_vcpus}}"
+
+    - name: "make install dblink"
+      make:
+        chdir: "/usr/local/src/postgresql-{{postgresql_version}}/contrib/dblink"
+        target: install
+        params:
+          NUM_THREADS: "{{ansible_processor_vcpus}}"
+
+    - name: "创建 /var/lib/pgsql"
+      file:
+        path: "{{postgresql_initdb_path}}"
+        state: directory
+        owner: pgadmin
+        group: pgadmin
+        mode: '0755'
+
+    - name: "修改~pgadmin/.bash_profile"
+      lineinfile:
+        dest: /home/pgadmin/.bash_profile
+        line: "{{item.line}}"
+      with_items:
+        - {line: "PGLIB={{postgresql_install_path}}/lib"}
+        - {line: "PGDATA={{postgresql_initdb_path}}/{{postgresql_version}}/data"}
+        - {line: "PATH=$PATH:{{postgresql_install_path}}/bin"}
+        - {line: "MANPATH=$MANPATH:{{postgresql_install_path}}/man"}
+        - {line: "export PGLIB PGDATA PATH MANPATH"}
+
+    - name: "pgadmin用户创建data"
+      become: yes
+      become_method: su
+      become_user: pgadmin
+      file:
+        path: "{{postgresql_initdb_path}}/{{postgresql_version}}/data"
+        state: directory
+        mode: '0755'
+
+    - name: "pgadmin用户加载环境变量"
+      become: yes
+      become_method: su
+      become_user: pgadmin
+      shell: source /home/pgadmin/.bash_profile
+
+    - name: "pgadmin用户初始化数据库"
+      become: yes
+      become_method: su
+      become_user: pgadmin
+      shell: "{{postgresql_install_path}}/bin/initdb -D {{postgresql_initdb_path}}/{{postgresql_version}}/data/ -A trust"
+
+    - name: "centos7 -> cp postgresql.service"
+      copy:
+        src: "{{dest_packages_path}}/postgresql/postgresql.service"
+        dest: /usr/lib/systemd/system/postgresql.service
+        owner: root
+        group: root
+        mode: '0755'
+        remote_src: yes
+      when: ansible_distribution_major_version == "7"
+
+    - name: "centos7 -> 编辑 postgresql.service"
+      lineinfile:
+        dest: /usr/lib/systemd/system/postgresql.service
+        regexp: "Environment=PGDATA=/var/lib/pgsql/9.3.0/data/"
+        line: "Environment=PGDATA={{postgresql_initdb_path}}/{{postgresql_version}}/data/"
+      when: ansible_distribution_major_version == "7"
+
+    - name: "centos6 -> cp postgresql.service"
+      copy:
+        src: "{{dest_packages_path}}/postgresql/postgresql"
+        dest: /etc/rc.d/init.d/postgresql
+        owner: root
+        group: root
+        mode: '0755'
+        remote_src: yes
+      when: ansible_distribution_major_version == "6"
+
+    - name: "编辑 postgresql.conf ->允许全部的IP连接数据库"
+      replace:
+        dest: "{{postgresql_initdb_path}}/{{postgresql_version}}/data/postgresql.conf"
+        regexp: "#listen_addresses = 'localhost'"
+        replace: "listen_addresses = '*'"
+    - name: "编辑 postgresql.conf -> 日志记录类型,默认是stderr"
+      replace:
+        dest: "{{postgresql_initdb_path}}/{{postgresql_version}}/data/postgresql.conf"
+        regexp: "#log_destination = 'stderr'"
+        replace: "log_destination = 'stderr'"
+
+    - name: "编辑 postgresql.conf -> 开启日志输出"
+      replace:
+        dest: "{{postgresql_initdb_path}}/{{postgresql_version}}/data/postgresql.conf"
+        regexp: "#logging_collector = off"
+        replace: "logging_collector = on"
+
+    - name: "编辑 postgresql.conf -> 输出日志"
+      replace:
+        dest: "{{postgresql_initdb_path}}/{{postgresql_version}}/data/postgresql.conf"
+        regexp: "#log_directory = 'pg_log'"
+        replace: "log_directory = 'pg_log'"
+
+    - name: "编辑 postgresql.conf -> 输出日志格式"
+      replace:
+        dest: "{{postgresql_initdb_path}}/{{postgresql_version}}/data/postgresql.conf"
+        regexp: "#log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'"
+        replace: "log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'"
+
+    - name: "编辑 pg_hba.conf -> 设置 trust 主机ip 网段"
+      lineinfile:
+        dest: "{{postgresql_initdb_path}}/{{postgresql_version}}/data/pg_hba.conf"
+        line: "host    all         all         {{ansible_default_ipv4['address']}}/24      trust"
+
+    - name: "建立/home/pgadmin/psql 软连接"
+      file:
+        src: "{{postgresql_install_path}}/bin/psql"
+        dest: /home/pgadmin/psql
+        owner: pgadmin
+        group: pgadmin
+        mode: '0755'
+        state: link
+        force: yes
+
+    - name: "建立/usr/bin/psql 软连接"
+      file:
+        src: "{{postgresql_install_path}}/bin/psql"
+        dest: /usr/bin/psql
+        mode: '0755'
+        state: link
+        force: yes
+
+    - name: "centos6 ->启动postgresql，并设置开机启动"
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
+      when: ansible_distribution_major_version == "6"
+
+    - name: "centos7 ->启动postgresql，并设置开机启动"
+      systemd:
+        name: postgresql
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      when: ansible_distribution_major_version == "7"
+
+    - name: "判断系统类型为centos 7,检查 postgresql 运行状态"
+      shell: echo  "#------postgresql安装情况------#" >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log" &&
+             systemctl status postgresql |grep -w Active |awk '{sub(/^[ \t]+/,"");print $0}' &>> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"
+      when: ansible_distribution_major_version == "7"
+
+    - name: "判断系统类型为centos 6,检查 postgresql 运行状态"
+      shell: echo  "#------postgresql安装情况------#" >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log" &&
+             service postgresql status >> "{{dest_logs_path}}/VerificationResult-{{ansible_default_ipv4['address']}}-{{DATE}}.log"
+      when: ansible_distribution_major_version == "6"
+
+
